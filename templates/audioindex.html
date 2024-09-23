@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Audio to Text</title>
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // Function to start recording
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const formData = new FormData();
+                        formData.append('audio_data', audioBlob, 'audio.wav');
+
+                        // Send the audio to the backend for transcription
+                        fetch('/convert', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('transcription').textContent = data.transcription;
+                        });
+                    };
+                });
+        }
+
+        // Function to stop recording
+        function stopRecording() {
+            mediaRecorder.stop();
+        }
+    </script>
+</head>
+<body>
+    <h1>Live Audio to Text using Whisper AI</h1>
+    <button onclick="startRecording()">Start Recording</button>
+    <button onclick="stopRecording()">Stop Recording</button>
+
+    <h2>Transcription:</h2>
+    <p id="transcription">Your transcription will appear here...</p>
+</body>
+</html>
